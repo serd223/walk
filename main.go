@@ -45,37 +45,45 @@ var (
 	strlen           = runewidth.StringWidth
 )
 
+// Keybind changes
+// keyOpen       from "enter"     to " "
+// keyBack       from "backspace" to "x"
+// keyPreview    from " "         to "enter"
+// keyPreviewAlt                  to "f"
 var (
-	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("esc"))
-	keyQuitQ     = key.NewBinding(key.WithKeys("q"))
-	keyOpen      = key.NewBinding(key.WithKeys("enter"))
-	keyBack      = key.NewBinding(key.WithKeys("backspace"))
-	keyFnDelete  = key.NewBinding(key.WithKeys("delete"))
-	keyUp        = key.NewBinding(key.WithKeys("up"))
-	keyDown      = key.NewBinding(key.WithKeys("down"))
-	keyLeft      = key.NewBinding(key.WithKeys("left"))
-	keyRight     = key.NewBinding(key.WithKeys("right"))
-	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
-	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
-	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
-	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
-	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
-	keyHome      = key.NewBinding(key.WithKeys("home"))
-	keyEnd       = key.NewBinding(key.WithKeys("end"))
-	keyVimUp     = key.NewBinding(key.WithKeys("k"))
-	keyVimDown   = key.NewBinding(key.WithKeys("j"))
-	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
-	keyVimRight  = key.NewBinding(key.WithKeys("l"))
-	keyVimTop    = key.NewBinding(key.WithKeys("g"))
-	keyVimBottom = key.NewBinding(key.WithKeys("G"))
-	keySearch    = key.NewBinding(key.WithKeys("/"))
-	keyPreview   = key.NewBinding(key.WithKeys(" "))
-	keyDelete    = key.NewBinding(key.WithKeys("d"))
-	keyUndo      = key.NewBinding(key.WithKeys("u"))
-	keyYank      = key.NewBinding(key.WithKeys("y"))
-	keyHidden    = key.NewBinding(key.WithKeys("."))
+	keyForceQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyQuit         = key.NewBinding(key.WithKeys("esc"))
+	keyQuitQ        = key.NewBinding(key.WithKeys("q"))
+	keyOpen         = key.NewBinding(key.WithKeys(" "))
+	keyBack         = key.NewBinding(key.WithKeys("x"))
+	keyFnDelete     = key.NewBinding(key.WithKeys("delete"))
+	keyUp           = key.NewBinding(key.WithKeys("up"))
+	keyDown         = key.NewBinding(key.WithKeys("down"))
+	keyLeft         = key.NewBinding(key.WithKeys("left"))
+	keyRight        = key.NewBinding(key.WithKeys("right"))
+	keyTop          = key.NewBinding(key.WithKeys("shift+up"))
+	keyBottom       = key.NewBinding(key.WithKeys("shift+down"))
+	keyLeftmost     = key.NewBinding(key.WithKeys("shift+left"))
+	keyRightmost    = key.NewBinding(key.WithKeys("shift+right"))
+	keyPageUp       = key.NewBinding(key.WithKeys("pgup"))
+	keyPageDown     = key.NewBinding(key.WithKeys("pgdown"))
+	keyHome         = key.NewBinding(key.WithKeys("home"))
+	keyEnd          = key.NewBinding(key.WithKeys("end"))
+	keyVimUp        = key.NewBinding(key.WithKeys("k"))
+	keyVimDown      = key.NewBinding(key.WithKeys("j"))
+	keyVimLeft      = key.NewBinding(key.WithKeys("h"))
+	keyVimRight     = key.NewBinding(key.WithKeys("l"))
+	keyVimTop       = key.NewBinding(key.WithKeys("K"))
+	keyVimBottom    = key.NewBinding(key.WithKeys("J"))
+	keyVimLeftmost  = key.NewBinding(key.WithKeys("H"))
+	keyVimRightmost = key.NewBinding(key.WithKeys("L"))
+	keySearch       = key.NewBinding(key.WithKeys("/"))
+	keyPreview      = key.NewBinding(key.WithKeys("enter"))
+	keyPreviewAlt   = key.NewBinding(key.WithKeys("f"))
+	keyDelete       = key.NewBinding(key.WithKeys("d"))
+	keyUndo         = key.NewBinding(key.WithKeys("u"))
+	keyYank         = key.NewBinding(key.WithKeys("y"))
+	keyHidden       = key.NewBinding(key.WithKeys("."))
 )
 
 func main() {
@@ -309,10 +317,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyBottom, keyPageDown, keyVimBottom):
 			m.moveBottom()
 
-		case key.Matches(msg, keyLeftmost):
+		case key.Matches(msg, keyLeftmost, keyVimLeftmost):
 			m.moveLeftmost()
 
-		case key.Matches(msg, keyRightmost):
+		case key.Matches(msg, keyRightmost, keyVimRightmost):
 			m.moveRightmost()
 
 		case key.Matches(msg, keyHome):
@@ -330,24 +338,75 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyVimDown):
 			m.moveDown()
 
-		case key.Matches(msg, keyLeft):
-			m.moveLeft()
+		case key.Matches(msg, keyLeft, keyVimLeft):
+			tooRight := (m.c - 1) == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files);
+			tooLeft := (m.c - 1) < 0;
+			if !(tooRight || tooLeft) {
+				m.c--;
+			} else {
+				if tooLeft {
+					m.search = ""
+					m.searchMode = false
+					m.prevName = filepath.Base(m.path)
+					m.path = filepath.Join(m.path, "..")
+					m.c = 0;
+					m.r = 0;
+					m.offset = 0;
+					
+					if p, ok := m.positions[m.path]; ok {
+						m.c = p.c
+						m.r = p.r
+						m.offset = p.offset
+					} else {
+						m.findPrevName = true
+					}
+					m.list()
+					return m, nil
+				}
+				if tooRight {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
+			}
+			// m.moveLeft()
 
-		case key.Matches(msg, keyVimLeft):
-			m.moveLeft()
-
-		case key.Matches(msg, keyRight):
-			m.moveRight()
-
-		case key.Matches(msg, keyVimRight):
-			m.moveRight()
+		case key.Matches(msg, keyRight, keyVimRight):
+			tooRight := (m.c + 1)>= m.columns;
+			tooLeft := (m.c + 1) == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files);
+			if !(tooRight || tooLeft) {
+				m.c++;
+			} else {
+				if tooRight {
+					m.search = ""
+					m.searchMode = false
+					filePath, ok := m.filePath()
+					if !ok {
+						return m, nil
+					}
+					if fi := fileInfo(filePath); fi.IsDir() {
+						// Enter subdirectory.
+						m.path = filePath
+						m.c = 0
+						m.r = 0
+						m.offset = 0
+						m.list()
+					} else {
+						m.moveRight()
+					}
+				}
+				if tooLeft {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
+			}
+			// m.moveRight()
 
 		case key.Matches(msg, keySearch):
 			m.searchMode = true
 			m.searchId++
 			m.search = ""
 
-		case key.Matches(msg, keyPreview):
+		case key.Matches(msg, keyPreview, keyPreviewAlt):
 			m.previewMode = !m.previewMode
 			// Reset position history as c&r changes.
 			m.positions = make(map[string]position)
@@ -741,10 +800,8 @@ func (m *model) openEditor() tea.Cmd {
 	if !ok {
 		return nil
 	}
-
 	cmdline := Split(lookup([]string{"WALK_EDITOR", "EDITOR"}, "less"), " ")
 	cmdline = append(cmdline, filePath)
-
 	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
